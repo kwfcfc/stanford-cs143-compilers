@@ -1,0 +1,17 @@
+# Compilation
+*.o
+*.s
+lexer
+parser
+cgen
+semant
+
+# test.output
+*.test.output
+
+# temporary files
+core
+*~
+
+# dependency
+*.d

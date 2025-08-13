@@ -1,0 +1,53 @@
+{
+  "name": "Stanford CS143 Compiler COOL C++",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/meaningful-ooo/devcontainer-features/fish:2": {
+      "fisher": false
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "terminal.integrated.profiles.linux": {
+          "fish": {
+            "path": "/usr/bin/fish"
+          }
+        }
+      },
+      "extensions": [
+        "streetsidesoftware.code-spell-checker",
+        "llvm-vs-code-extensions.clangd",
+        "vadimcn.vscode-lldb"
+      ]
+    },
+    "vscodium": {
+      "registries": {
+        "openvsx": {
+          "url": "https://open-vsx.org/vscode/gallery",
+          "headers": {
+            "Accept": "application/json"
+          }
+        }
+      },
+      "extensions": {
+        "streetsidesoftware.code-spell-checker": {
+          "registry": "openvsx"
+        },
+        "llvm-vs-code-extensions.clangd": {
+          "registry": "openvsx"
+        },
+        "vadimcn.vscode-lldb": {
+          "registry": "openvsx"
+        }
+      }
+    }
+  },
+  "remoteUser": "vscode",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/bin"
+  }
+}
