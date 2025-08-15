@@ -90,8 +90,9 @@ FALSE           f[aA][lL][sS][eE]
   *  Nested comments
   */
 "(*"           { BEGIN(COMMENT); nested_comment_depth = 1; }
-"*)"           { 
-  cool_yylval.error_msg = "Unmatched *)";
+"*)"           {
+  std::string error = "Unmatched *)";
+  cool_yylval.error_msg = strdup(error.c_str());
   return ERROR; 
 }
 <COMMENT>"(*"  { ++nested_comment_depth; }
@@ -99,7 +100,8 @@ FALSE           f[aA][lL][sS][eE]
 <COMMENT>{NL}  { curr_lineno; }
 <COMMENT>.     { /* comments */}
 <COMMENT><EOF> {
-  cool_yylval.error_msg = "EOF in comment";
+  std::string error = "EOF in comment";
+  cool_yylval.error_msg = strdup(error.c_str());
   return ERROR;
 }
 
@@ -132,6 +134,16 @@ FALSE           f[aA][lL][sS][eE]
 {NEW}       { return NEW; }
 {OF}        { return OF; }
 {NOT}       { return NOT; }
+
+{TRUE}      {
+  cool_yylval.boolean = true;
+  return BOOL_CONST;
+}
+
+{FALSE}     {
+  cool_yylval.boolean = false;
+  return BOOL_CONST;
+}
 
  /*
   *  String constants (C syntax)
