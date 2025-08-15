@@ -7,6 +7,7 @@
  *  output, so headers and global definitions are placed here to be visible
  * to the code in the file.  Don't remove anything that was here initially
  */
+#include <cstdio>
 %{
 #include <cool-parse.h>
 #include <stringtab.h>
@@ -42,32 +43,95 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
-
+int nested_comment_depth;
+char error_msg[MAX_STR_CONST];
+char *error_msg_ptr;
 %}
 
 /*
  * Define names for regular expressions here.
  */
+%x COMMENT
 
 DARROW          =>
+ASSIGN          <-
+LE              <=
+WS              [ \t\v\f]
+NL              (\r\n)|\r|\n
+DIGIT           [0-9]
+ALPHANUMERIC    [a-zA-Z0-9_]
+
+/* Keywords, case insensitive */
+CLASS           [cC][lL][aA][sS][sS]
+ELSE            [eE][lL][sS][eE]
+FI              [fF][iI]
+IF              [iI][fF]
+IN              [iI][nN]
+INHERITS        [iI][nN][hH][eE][rR][tT][sS]
+ISVOID          [iI][sS][vV][oO][iI][dD]
+LET             [lL][eE][tT]
+LOOP            [lL][oO][oO][pP]
+POOL            [pP][oO][oO][lL]
+THEN            [tT][hH][eE][nN]
+WHILE           [wW][hH][iI][lL][eE]
+CASE            [cC][aA][sS][eE]
+ESAC            [eE][sS][aA][cC]
+NEW             [nN][eE][wW]
+OF              [oO][fF]
+NOT             [nN][oO][tT]
+
+/* Keywords, first letter as lower case */
+TRUE            t[rR][uU][eE]
+FALSE           f[aA][lL][sS][eE]
 
 %%
 
  /*
   *  Nested comments
   */
-
+"(*"           { BEGIN(COMMENT); nested_comment_depth = 1; }
+"*)"           { 
+  cool_yylval.error_msg = "Unmatched *)";
+  return ERROR; 
+}
+<COMMENT>"(*"  { ++nested_comment_depth; }
+<COMMENT>")*"  { if (--nested_comment_depth == 0) BEGIN(INITIAL); }
+<COMMENT>{NL}  { curr_lineno; }
+<COMMENT>.     { /* comments */}
+<COMMENT><EOF> {
+  cool_yylval.error_msg = "EOF in comment";
+  return ERROR;
+}
 
  /*
   *  The multiple-character operators.
   */
 {DARROW}		{ return (DARROW); }
+{ASSIGN}    { return (ASSIGN); }
+{LE}        { return (LE); }
 
  /*
   * Keywords are case-insensitive except for the values true and false,
   * which must begin with a lower-case letter.
   */
 
+{CLASS}     { return CLASS; }
+{ELSE}      { return ELSE; }
+{FI}        { return FI; }
+{IF}        { return IF; }
+{IN}        { return IN; }
+{INHERITS}  { return INHERITS; }
+{ISVOID}    { return ISVOID; }
+{LET}       { return LET; }
+{LOOP}      { return LOOP; }
+{POOL}      { return POOL; }
+{THEN}      { return THEN; }
+{WHILE}     { return WHILE; }
+{CASE}      { return CASE; }
+{ESAC}      { return ESAC; }
+{NEW}       { return NEW; }
+{OF}        { return OF; }
+{NOT}       { return NOT; }
 
  /*
   *  String constants (C syntax)
