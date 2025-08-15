@@ -7,7 +7,6 @@
  *  output, so headers and global definitions are placed here to be visible
  * to the code in the file.  Don't remove anything that was here initially
  */
-#include <cstdio>
 %{
 #include <cool-parse.h>
 #include <stringtab.h>
@@ -44,14 +43,13 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 int nested_comment_depth;
-char error_msg[MAX_STR_CONST];
-char *error_msg_ptr;
 %}
 
 /*
  * Define names for regular expressions here.
  */
 %x COMMENT
+%x STRING
 
 DARROW          =>
 ASSIGN          <-
@@ -86,6 +84,13 @@ FALSE           f[aA][lL][sS][eE]
 
 %%
 
+ /* 
+  * white space and new line
+  */
+
+{WS}+ {}
+{NL}  { ++curr_lineno; }
+
  /*
   *  Nested comments
   */
@@ -96,14 +101,20 @@ FALSE           f[aA][lL][sS][eE]
   return ERROR; 
 }
 <COMMENT>"(*"  { ++nested_comment_depth; }
-<COMMENT>")*"  { if (--nested_comment_depth == 0) BEGIN(INITIAL); }
-<COMMENT>{NL}  { curr_lineno; }
+<COMMENT>"*)"  { if (--nested_comment_depth == 0) BEGIN(INITIAL); }
+<COMMENT>{NL}  { ++curr_lineno; }
 <COMMENT>.     { /* comments */}
 <COMMENT><EOF> {
   std::string error = "EOF in comment";
   cool_yylval.error_msg = strdup(error.c_str());
-  return ERROR;
+  return (ERROR);
 }
+
+ /*
+  * single line comment
+  */
+
+"--".{NL} { ++curr_lineno; }
 
  /*
   *  The multiple-character operators.
@@ -113,36 +124,62 @@ FALSE           f[aA][lL][sS][eE]
 {LE}        { return (LE); }
 
  /*
+  * The single character operators.
+  */
+
+[-+*/<.@~] {
+  return (int) yytext[0];
+}
+
+ /*
   * Keywords are case-insensitive except for the values true and false,
   * which must begin with a lower-case letter.
   */
 
-{CLASS}     { return CLASS; }
-{ELSE}      { return ELSE; }
-{FI}        { return FI; }
-{IF}        { return IF; }
-{IN}        { return IN; }
-{INHERITS}  { return INHERITS; }
-{ISVOID}    { return ISVOID; }
-{LET}       { return LET; }
-{LOOP}      { return LOOP; }
-{POOL}      { return POOL; }
-{THEN}      { return THEN; }
-{WHILE}     { return WHILE; }
-{CASE}      { return CASE; }
-{ESAC}      { return ESAC; }
-{NEW}       { return NEW; }
-{OF}        { return OF; }
-{NOT}       { return NOT; }
+{CLASS}     { return (CLASS); }
+{ELSE}      { return (ELSE); }
+{FI}        { return (FI); }
+{IF}        { return (IF); }
+{IN}        { return (IN); }
+{INHERITS}  { return (INHERITS); }
+{ISVOID}    { return (ISVOID); }
+{LET}       { return (LET); }
+{LOOP}      { return (LOOP); }
+{POOL}      { return (POOL); }
+{THEN}      { return (THEN); }
+{WHILE}     { return (WHILE); }
+{CASE}      { return (CASE); }
+{ESAC}      { return (ESAC); }
+{NEW}       { return (NEW); }
+{OF}        { return (OF); }
+{NOT}       { return (NOT); }
 
 {TRUE}      {
   cool_yylval.boolean = true;
-  return BOOL_CONST;
+  return (BOOL_CONST);
 }
 
 {FALSE}     {
   cool_yylval.boolean = false;
-  return BOOL_CONST;
+  return (BOOL_CONST);
+}
+
+ /* Integer constants */
+{DIGIT}+ {
+  cool_yylval.symbol = inttable.add_string(yytext);
+  return (INT_CONST);
+}
+
+ /* Type id */
+[A-Z]{ALPHANUMERIC}+ {
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return (TYPEID);
+}
+
+ /* Object id */
+[a-z]{ALPHANUMERIC}+ {
+  cool_yylval.symbol = idtable.add_string(yytext);
+  return (OBJECTID);
 }
 
  /*
@@ -152,5 +189,5 @@ FALSE           f[aA][lL][sS][eE]
   *
   */
 
-
+[\"]
 %%
