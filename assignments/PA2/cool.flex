@@ -43,6 +43,8 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 int nested_comment_depth;
+bool string_over_flow;
+bool string_null_char;
 %}
 
 /*
@@ -54,8 +56,9 @@ int nested_comment_depth;
 DARROW          =>
 ASSIGN          <-
 LE              <=
-WS              [ \t\v\f]
-NL              (\r\n)|\r|\n
+WS              [ \t\v\f\r]
+ /* NL              (\r\n)|\r|\n */
+NL              \n
 DIGIT           [0-9]
 ALPHANUMERIC    [a-zA-Z0-9_]
 
@@ -65,7 +68,7 @@ ELSE            [eE][lL][sS][eE]
 FI              [fF][iI]
 IF              [iI][fF]
 IN              [iI][nN]
-INHERITS        [iI][nN][hH][eE][rR][tT][sS]
+INHERITS        [iI][nN][hH][eE][rR][iI][tT][sS]
 ISVOID          [iI][sS][vV][oO][iI][dD]
 LET             [lL][eE][tT]
 LOOP            [lL][oO][oO][pP]
@@ -96,17 +99,16 @@ FALSE           f[aA][lL][sS][eE]
   */
 "(*"           { BEGIN(COMMENT); nested_comment_depth = 1; }
 "*)"           {
-  std::string error = "Unmatched *)";
-  cool_yylval.error_msg = strdup(error.c_str());
+  cool_yylval.error_msg = strdup("Unmatched *)");
   return ERROR; 
 }
 <COMMENT>"(*"  { ++nested_comment_depth; }
 <COMMENT>"*)"  { if (--nested_comment_depth == 0) BEGIN(INITIAL); }
 <COMMENT>{NL}  { ++curr_lineno; }
 <COMMENT>.     { /* comments */}
-<COMMENT><EOF> {
-  std::string error = "EOF in comment";
-  cool_yylval.error_msg = strdup(error.c_str());
+<COMMENT><<EOF>> {
+  cool_yylval.error_msg = strdup("EOF in comment");
+  BEGIN(INITIAL);
   return (ERROR);
 }
 
@@ -114,7 +116,8 @@ FALSE           f[aA][lL][sS][eE]
   * single line comment
   */
 
-"--".{NL} { ++curr_lineno; }
+"--".*{NL} { ++curr_lineno; }
+"--".*     {}
 
  /*
   *  The multiple-character operators.
@@ -127,7 +130,7 @@ FALSE           f[aA][lL][sS][eE]
   * The single character operators.
   */
 
-[-+*/<.@~] {
+[-+*/<=.,@~;\{\}\(\):] {
   return (int) yytext[0];
 }
 
@@ -171,13 +174,13 @@ FALSE           f[aA][lL][sS][eE]
 }
 
  /* Type id */
-[A-Z]{ALPHANUMERIC}+ {
+[A-Z]{ALPHANUMERIC}* {
   cool_yylval.symbol = idtable.add_string(yytext);
   return (TYPEID);
 }
 
  /* Object id */
-[a-z]{ALPHANUMERIC}+ {
+[a-z]{ALPHANUMERIC}* {
   cool_yylval.symbol = idtable.add_string(yytext);
   return (OBJECTID);
 }
@@ -189,5 +192,97 @@ FALSE           f[aA][lL][sS][eE]
   *
   */
 
-[\"]
+  /* " start */
+\"            {
+  string_buf_ptr = string_buf;
+  string_buf[0] = '\0';
+  string_over_flow = false;
+  string_null_char = false;
+  BEGIN(STRING);
+}
+
+<STRING>\"     {
+  if (string_over_flow) {
+    cool_yylval.error_msg = strdup("String constant too long");
+    BEGIN(INITIAL);
+    return (ERROR);
+  }
+  if (string_null_char) {
+    cool_yylval.error_msg = strdup("String contains null character");
+    BEGIN(INITIAL);
+    return (ERROR);
+  }
+  cool_yylval.symbol = stringtable.add_string(string_buf);
+  BEGIN(INITIAL);
+  return (STR_CONST);
+}
+ /* " end */  
+
+<STRING>"\\\\" {
+  if (!string_over_flow && string_buf_ptr - string_buf < MAX_STR_CONST - 1) {
+    *string_buf_ptr++ = '\\';
+    *string_buf_ptr = '\0';
+  } else {
+    string_over_flow = true;
+  }
+}
+
+<STRING>"\\"[bfnt\0] {
+  char parse;
+  switch (yytext[1]) {
+    case 'b': parse = '\b'; break;
+    case 'f': parse = '\f'; break;
+    case 'n': parse = '\n'; ++curr_lineno; break;
+    case 't': parse = '\t'; break;
+    case '\0': string_null_char = true; break;
+  }
+  if (!string_over_flow && string_buf_ptr - string_buf < MAX_STR_CONST - 1) {
+    *string_buf_ptr++ = parse;
+    *string_buf_ptr = '\0';
+  } else {
+    string_over_flow = true;
+  }
+}
+
+<STRING>"\\"[^bfnt\\\0] {
+  if (!string_over_flow && string_buf_ptr - string_buf < MAX_STR_CONST - 1) {
+    *string_buf_ptr++ = yytext[1];
+    *string_buf_ptr = '\0';
+  } else {
+    string_over_flow = true;
+  }
+}
+
+<STRING>{NL}  {
+  ++curr_lineno;
+  cool_yylval.error_msg = strdup("Unterminated string constant");
+  cool_yylval.symbol = stringtable.add_string(string_buf);
+  BEGIN(INITIAL);
+  return (ERROR);
+}
+
+<STRING><<EOF>> {
+  cool_yylval.error_msg = strdup("EOF in string constant");
+  BEGIN(INITIAL);
+  return (ERROR);
+}
+
+<STRING>. {
+  if (string_buf_ptr - string_buf + yyleng > MAX_STR_CONST - 1) {
+    string_over_flow = true;
+  } else {
+    int length = snprintf(string_buf_ptr,
+                               MAX_STR_CONST - (string_buf_ptr - string_buf),
+                               "%s", yytext);
+    string_buf_ptr += length;
+    if (length != yyleng){
+      string_null_char = true;
+    }
+  }
+}
+
+.      {
+  cool_yylval.error_msg = strdup(yytext);
+  return (ERROR);
+}
 %%
