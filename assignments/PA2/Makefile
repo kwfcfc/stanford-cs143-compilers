@@ -22,7 +22,7 @@ CPPINCLUDE= -I. -I${CLASSDIR}/include/PA${ASSN} -I${CLASSDIR}/src/PA${ASSN}
 FFLAGS= -d -ocool-lex.cc
 
 CC=g++
-CFLAGS= -g -Wall -Wno-unused -Wno-write-strings ${CPPINCLUDE}
+CFLAGS= -g -std=c++11 -Wall -Wno-unused -Wno-write-strings ${CPPINCLUDE}
 FLEX=flex ${FFLAGS}
 DEPEND = ${CC} -MM ${CPPINCLUDE}
 
