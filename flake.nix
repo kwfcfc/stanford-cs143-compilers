@@ -20,7 +20,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             git
-            flex
+            flex_2_5_35
             bison
             clang-tools # for clangd lsp
 
