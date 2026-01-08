@@ -11,3 +11,6 @@ core
 
 # dependency
 *.d
+
+# ignore direnv stuff
+/.direnv/
