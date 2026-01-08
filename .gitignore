@@ -13,4 +13,5 @@ core
 *.d
 
 # ignore direnv stuff
-/.direnv/
+.direnv
+
