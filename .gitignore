@@ -15,3 +15,5 @@ core
 # ignore direnv stuff
 .direnv
 
+# ignore Apple's stuff
+.DS_Store
