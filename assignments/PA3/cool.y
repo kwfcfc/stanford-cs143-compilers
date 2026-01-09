@@ -142,7 +142,7 @@
     %type <formal> formal
 
     %type <expressions> expression_block expression_list
-    %type <expression> expression
+    %type <expression> expression let_expression
 
     %type <cases> case_list
     %type <case_> case
@@ -294,20 +294,13 @@
       SET_NODELOC(@2);
       $$ = block($2);
     }
-    | /* let, single assignment and no init expression */
-    LET OBJECTID ':' TYPEID IN expression
+    | /* let */
+    LET let_expression
     {
       @$ = @2;
       SET_NODELOC(@2);
-      $$ = let($2, $4, no_expr(), $6);
+      $$ = $2;
     }
-    | /* let, single assignment with init expression */
-    LET OBJECTID ':' TYPEID ASSIGN expression IN expression
-    {
-      @$ = @2;
-      SET_NODELOC(@2);
-      $$ = let($2, $4, $6, $8);
-    }    
     | /* case */
     CASE expression OF case_list ESAC
     {
@@ -490,6 +483,37 @@
     }
     ;
 
+    /* nested let exression */
+    let_expression:
+    | /* let, single assignment and no init expression */
+    OBJECTID ':' TYPEID IN expression
+    {
+      @$ = @1;
+      SET_NODELOC(@1);
+      $$ = let($1, $3, no_expr(), $5);
+    }
+    | /* let, single assignment with init expression */
+    OBJECTID ':' TYPEID ASSIGN expression IN expression
+    {
+      @$ = @1;
+      SET_NODELOC(@1);
+      $$ = let($1, $3, $5, $7);
+    }
+    | /* recursive case without assign */
+    OBJECTID ':' TYPEID IN let_expression
+    {
+      @$ = @1;
+      SET_NODELOC(@1);
+      $$ = let($1, $3, no_expr(), $5);
+    }
+    | /* recursive case with assign */
+    OBJECTID ':' TYPEID ASSIGN expression IN let_expression
+    {
+      @$ = @1;
+      SET_NODELOC(@1);
+      $$ = let($1, $3, $5, $7);
+    }
+    ;
     /* end of grammar */
     %%
 
