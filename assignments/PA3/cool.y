@@ -51,7 +51,7 @@
       // Set the line number of the current non-terminal:
       // ***********************************************
       // You can access the line numbers of the i'th item with @i, just
-      // like you acess the value of the i'th exporession with $i.
+      // like you access the value of the i'th expression with $i.
       //
       // Here, we choose the line number of the last INT_CONST (@3) as the
       // line number of the resulting expression (@$). You are free to pick
@@ -141,19 +141,22 @@
     %type <formals> formal_list
     %type <formal> formal
 
-    %type <expressions> expression_block expression_list
+    %type <expressions> expression_block
+    %type <expressions> expression_list
     %type <expression> expression let_expression
 
     %type <cases> case_list
     %type <case_> case
 
     /* Precedence declarations go here. */
-    %right ASSIGN    
+    %right IN
+
+    %right ASSIGN
     %right NOT
     %nonassoc LE '<' '='
     %left '+' '-'
     %left '*' '/'
-    
+
     %nonassoc ISVOID
     %right '~'
     %nonassoc '@'
@@ -182,26 +185,25 @@
     stringtable.add_string(curr_filename)); }
     | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+    | /* error class */
+    CLASS TYPEID error '{' feature_list '}' ';'
+    { yyerrok; }
     ;
 
     /* Feature list may be empty, but no empty features in list. */
     feature_list:
-    /* multiple features */
+    /* non empty features */
     feature_list feature
     {
       @$ = @1;
       SET_NODELOC(@1);
       $$ = append_Features($1, single_Features($2));
     }
-    | /* single feature */
-    feature
-    {
-      @$ = @1;
-      SET_NODELOC(@1);
-      $$ = single_Features($1);
-    }
     |	/* empty */
     { $$ = nil_Features(); }
+    | /* error feature list */
+    error ';'
+    { yyerrok; }
     ;
 
     feature:
@@ -283,6 +285,10 @@
       SET_NODELOC(@1);
       $$ = dispatch(object(idtable.add_string("Self")), $1, $3);
     }
+    | /* wrong dispatch within parenthesis */
+      expression '@' TYPEID '.' OBJECTID '(' error ')' { yyerrok; $$ = no_expr(); }
+    | expression '.' OBJECTID '(' error ')' { yyerrok; $$ = no_expr(); }
+    | OBJECTID '(' error ')' { yyerrok; $$ = no_expr(); }
     | /* if branch */
     IF expression THEN expression ELSE expression FI
     {
@@ -310,6 +316,18 @@
       @$ = @2;
       SET_NODELOC(@2);
       $$ = $2;
+    }
+    | /* bad cases expression */
+    CASE error OF case_list ESAC
+    {
+      @$ = @2;
+      SET_NODELOC(@2);
+    }
+    | /* bad cases branch */
+    CASE expression OF error ESAC
+    {
+      @$ = @2;
+      SET_NODELOC(@2);
     }
     | /* case */
     CASE expression OF case_list ESAC
@@ -493,6 +511,11 @@
       SET_NODELOC(@1);
       $$ = append_Expressions($1, single_Expressions($2));
     }
+    | /* error expression */
+    error ';'
+    {
+      yyerrok;
+    }
     ;
 
     /* nested let exression */
@@ -524,6 +547,14 @@
       @$ = @1;
       SET_NODELOC(@1);
       $$ = let($1, $3, $5, $7);
+    }
+    | /* error */
+    error ',' let_expression
+    {
+      yyerrok;
+      @$ = @1;
+      SET_NODELOC(@1);
+      $$ = $3;
     }
     ;
     /* end of grammar */
