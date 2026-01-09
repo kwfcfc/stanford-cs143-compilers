@@ -148,6 +148,16 @@
     %type <case_> case
 
     /* Precedence declarations go here. */
+    %right ASSIGN    
+    %right NOT
+    %nonassoc LE '<' '='
+    %left '+' '-'
+    %left '*' '/'
+    
+    %nonassoc ISVOID
+    %right '~'
+    %nonassoc '@'
+    %nonassoc '.'
 
 
     %%
@@ -464,6 +474,8 @@
       SET_NODELOC(@1);
       $$ = append_Expressions($1, single_Expressions($3));
     }
+    | /* empty expressions */
+    { $$ = nil_Expressions(); }
     ;
 
     expression_block:
@@ -475,17 +487,17 @@
       $$ = single_Expressions($1);
     }
     | /* multiple expressions */
-    expression_block ';' expression ';'
+    expression_block expression ';'
     {
       @$ = @1;
       SET_NODELOC(@1);
-      $$ = append_Expressions($1, single_Expressions($3));
+      $$ = append_Expressions($1, single_Expressions($2));
     }
     ;
 
     /* nested let exression */
     let_expression:
-    | /* let, single assignment and no init expression */
+    /* let, single assignment and no init expression */
     OBJECTID ':' TYPEID IN expression
     {
       @$ = @1;
@@ -500,14 +512,14 @@
       $$ = let($1, $3, $5, $7);
     }
     | /* recursive case without assign */
-    OBJECTID ':' TYPEID IN let_expression
+    OBJECTID ':' TYPEID ',' let_expression
     {
       @$ = @1;
       SET_NODELOC(@1);
       $$ = let($1, $3, no_expr(), $5);
     }
     | /* recursive case with assign */
-    OBJECTID ':' TYPEID ASSIGN expression IN let_expression
+    OBJECTID ':' TYPEID ASSIGN expression ',' let_expression
     {
       @$ = @1;
       SET_NODELOC(@1);
