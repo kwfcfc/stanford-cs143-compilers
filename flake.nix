@@ -66,8 +66,6 @@
               gcc
             ];
 
-
-            # shellHook 会在进入 nix develop 时运行
             shellHook = ''
               # add coolc to PATh
               # export PATH="$PWD/bin:$PATH"
